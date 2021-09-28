@@ -1,34 +1,34 @@
-﻿// 2 digits:         91 x         99 =                 9009, 2ms
-// 3 digits:        913 x        993 =               906609, 0ms
-// 4 digits:       9901 x       9999 =             99000099, 0ms
-// 5 digits:      99681 x      99979 =           9966006699, 1ms
-// 6 digits:     999001 x     999999 =         999000000999, 10ms
-// 7 digits:    9997647 x    9998017 =       99956644665999, 97ms
-// 8 digits:   99990001 x   99999999 =     9999000000009999, 783ms
-// 9 digits:  999920317 x  999980347 =   999900665566009999, 61158ms
-//10 digits: 9999641743 x 9999850499 =  7761202105012021677, 1411124ms
-
-// Multithreaded:
-// 2 digits:          0 x          0 =                 9009, 5ms
-// 3 digits:          0 x          0 =               906609, 0ms
-// 4 digits:          0 x          0 =             99000099, 0ms
-// 5 digits:          0 x          0 =           9966006699, 3ms
-// 6 digits:          0 x          0 =         999000000999, 25ms
-// 7 digits:          0 x          0 =       99956644665999, 210ms
-// 8 digits:          0 x          0 =     9999000000009999, 964ms
-// 9 digits:          0 x          0 =   999900665566009999, 96352ms
-//10 digits:          0 x          0 =  7761202105012021677, 1995026ms
+﻿/*
+ 3 digits:            913 x            993 =                       906609, 7ms
+ 4 digits:           9999 x           9901 =                     99000099, 0ms
+ 5 digits:          99681 x          99979 =                   9966006699, 11ms
+ 6 digits:         999999 x         999001 =                 999000000999, 0ms
+ 7 digits:        9997647 x        9998017 =               99956644665999, 812ms
+ 8 digits:       99999999 x       99990001 =             9999000000009999, 0ms
+ 9 digits:      999920317 x      999980347 =           999900665566009999, 508259ms
+10 digits:     9999999999 x     9999900001 =         99999000000000099999, 0ms
+11 digits:    99999943851 x    99999996349 =       9999994020000204999999, 263041ms
+12 digits:   999999999999 x   999999000001 =     999999000000000000999999, 0ms
+*/
 
 using System.Diagnostics;
+using System.Numerics;
 
-static bool IsPalindromeBogdan(ulong palindromCandidate)
+static bool IsPalindrome(BigInteger palindromCandidate)
 {
-    string nr = palindromCandidate.ToString();
+    string palindromeString = palindromCandidate.ToString();
+    int length = palindromeString.Length;
+
+    if (length % 2 != 0)
+    {
+        return false;
+    }
+
     int i = 0;
 
-    while (i < nr.Length / 2)
+    while (i < length / 2)
     {
-        if (nr[i] != nr[nr.Length - 1 - i])
+        if (palindromeString[i] != palindromeString[length - 1 - i])
         {
             return false;
         }
@@ -39,89 +39,67 @@ static bool IsPalindromeBogdan(ulong palindromCandidate)
     return true;
 }
 
-static ulong PartialMax(ulong i, ulong startHigh)
+/// <summary>
+/// Palindromes with even number of digits in their multipliers always follow a pattern
+///  6:     999001 x     999999 =         999000000999
+///  8:   99990001 x   99999999 =     9999000000009999
+/// 10: 9999900001 x 9999999999 = 99999000000000099999
+/// </summary>
+static BigInteger GeneratePalindromeFromEvenDigits(int nrDigits, out BigInteger x1, out BigInteger x2)
 {
-    ulong localMax = 0;
-
-    for (ulong j = i; j <= startHigh; j++)
+    if (nrDigits % 2 != 0)
     {
-        ulong palindrome = i * j;
+        x1 = 0;
+        x2 = 0;
 
-        if (
-            localMax < palindrome &&
-            palindrome % 11 == 0 &&
-            IsPalindromeBogdan(palindrome))
-        {
-            //x1 = i;
-            //x2 = j;
-            localMax = palindrome;
-        }
+        return 0;
     }
 
-    return localMax;
+    // E.g. 9999999999
+    x1 = (BigInteger)(Math.Pow(10, nrDigits) - 1);
+
+    // E.g. 9999900001
+    x2 = x1 - (BigInteger)Math.Pow(10, nrDigits / 2) + 2;
+
+    return x1 * x2;
+
 }
 
-static ulong PalindromeParallel(int nrDigits, out ulong x1, out ulong x2)
+static BigInteger Palindrome(int nrDigits, out BigInteger x1, out BigInteger x2)
 {
+    const bool reduceSpace = true;
     x1 = 0;
     x2 = 0;
 
-    // 999999
-    ulong startFromMax = (ulong)Math.Pow(10, nrDigits) - 1;
-
-    // 999999 - 10000
-    ulong endWithSmallest = startFromMax - (ulong)Math.Pow(10, (int)Math.Round(nrDigits / 2m, 0) + 1) + 1;
-    //ulong endWithSmallest = (ulong)Math.Pow(10, nrDigits - 1);
-
-    ulong max = 0;
-    int degreeOfParallelism = 2;
-
-    Task<ulong>[] tasks = new Task<ulong>[degreeOfParallelism];
-
-    for (ulong i = startFromMax; i >= endWithSmallest; i--)
+    // 1 digit numbers cannot form a palindrome
+    if (nrDigits <= 1)
     {
-        if (max >= i * startFromMax)
-        {
-            break;
-        }
-
-        for (int taskNumber = 0; taskNumber < degreeOfParallelism; taskNumber++)
-        {
-            ulong diff = startFromMax - endWithSmallest;
-            ulong part = diff / (ulong)degreeOfParallelism;
-            ulong startHigh = startFromMax - ((ulong)taskNumber * part);
-
-            tasks[taskNumber] = Task.Run(() => PartialMax(i, startHigh));
-        }
-
-        Task.WaitAll(tasks);
-
-        ulong localMax = tasks.Max(t => t.Result);
-
-        if (max < localMax)
-        {
-            max = localMax;
-        }
+        return 0;
     }
 
-    return max;
-}
-
-static ulong Palindrome(int nrDigits, out ulong x1, out ulong x2)
-{
-    x1 = 0;
-    x2 = 0;
+    if (nrDigits % 2 == 0)
+    {
+        // In case of even numbered digits we cen directly construct the results
+        return GeneratePalindromeFromEvenDigits(nrDigits, out x1, out x2);
+    }
 
     // 999999
-    ulong startFromMax = (ulong)Math.Pow(10, nrDigits) - 1;
+    BigInteger startFromMax = (BigInteger)Math.Pow(10, nrDigits) - 1;
 
-    // 999999 - 10000
-    //ulong endWithSmallest = startFromMax - (ulong)Math.Pow(10, (int)Math.Round(nrDigits / 2m, 0) + 1) + 1;
-    ulong endWithSmallest = (ulong)Math.Pow(10, nrDigits - 1);
+    // 100000
+    BigInteger endWithSmallest = (BigInteger)Math.Pow(10, nrDigits - 1);
 
-    ulong max = 0;
+    if (reduceSpace)
+    {
+        // Cheat, by artificially reducing the explored space
+        // 990000
+        endWithSmallest = startFromMax - (BigInteger)Math.Pow(10, (nrDigits / 2) + 1);
+    }
 
-    for (ulong i = startFromMax; i >= endWithSmallest; i--)
+    BigInteger max = 0;
+
+
+    for (BigInteger i = startFromMax; i >= endWithSmallest; i--)
     {
         if (max >= i * startFromMax)
         {
@@ -129,17 +107,18 @@ static ulong Palindrome(int nrDigits, out ulong x1, out ulong x2)
         }
 
         // Since i*j = j * i you only need to calculate the product for all j>= i
-        for (ulong j = i; j <= startFromMax; j++)
+        for (BigInteger j = i; j <= startFromMax; j++)
         {
-            ulong palindrome = i * j;
+            BigInteger palindrome = i * j;
 
             if (
                 max < palindrome &&
                 palindrome % 11 == 0 &&
-                IsPalindromeBogdan(palindrome))
+                IsPalindrome(palindrome))
             {
                 x1 = i;
                 x2 = j;
+
                 max = palindrome;
             }
         }
@@ -150,9 +129,9 @@ static ulong Palindrome(int nrDigits, out ulong x1, out ulong x2)
 
 Stopwatch sw = new();
 
-for (int x = 2; x <= 10; x++)
+for (int x = 1; x <= 12; x++)
 {
     sw.Restart();
-    ulong max = Palindrome(x, out ulong i, out ulong j);
-    Console.WriteLine($"{x,2} digits: {i,10} × {j,10} = {max,20}, {sw.ElapsedMilliseconds}ms");
+    BigInteger max = Palindrome(x, out BigInteger i, out BigInteger j);
+    Console.WriteLine($"{x,2} digits: {i,14} × {j,14} = {max,28}, {sw.ElapsedMilliseconds}ms");
 }
