@@ -1,14 +1,16 @@
 ﻿/*
- 3 digits:            913 x            993 =                       906609, 7ms
- 4 digits:           9999 x           9901 =                     99000099, 0ms
- 5 digits:          99681 x          99979 =                   9966006699, 11ms
- 6 digits:         999999 x         999001 =                 999000000999, 0ms
- 7 digits:        9997647 x        9998017 =               99956644665999, 812ms
- 8 digits:       99999999 x       99990001 =             9999000000009999, 0ms
- 9 digits:      999920317 x      999980347 =           999900665566009999, 508259ms
-10 digits:     9999999999 x     9999900001 =         99999000000000099999, 0ms
-11 digits:    99999943851 x    99999996349 =       9999994020000204999999, 263041ms
-12 digits:   999999999999 x   999999000001 =     999999000000000000999999, 0ms
+     3 digits:            913 x            993 =                       906609, 7ms
+     4 digits:           9999 x           9901 =                     99000099, 0ms
+     5 digits:          99681 x          99979 =                   9966006699, 11ms
+     6 digits:         999999 x         999001 =                 999000000999, 0ms
+     7 digits:        9997647 x        9998017 =               99956644665999, 812ms
+     8 digits:       99999999 x       99990001 =             9999000000009999, 0ms
+     9 digits:      999920317 x      999980347 =           999900665566009999, 508259ms
+    10 digits:     9999999999 x     9999900001 =         99999000000000099999, 0ms
+    11 digits:    99999943851 x    99999996349 =       9999994020000204999999, 420031ms
+    12 digits:   999999999999 x   999999000001 =     999999000000000000999999, 0ms
+    13 digits: ?
+    14 digits: 99999999999999 x 99999990000001 = 9999999000000000000009999999, 0ms
 */
 
 using System.Diagnostics;
@@ -40,12 +42,16 @@ static bool IsPalindrome(BigInteger palindromCandidate)
 }
 
 /// <summary>
-/// Palindromes with even number of digits in their multipliers always follow a pattern
+/// Palindromes with even number of digits in their multipliers always follow a 
+/// pattern:
 ///  6:     999001 x     999999 =         999000000999
 ///  8:   99990001 x   99999999 =     9999000000009999
 /// 10: 9999900001 x 9999999999 = 99999000000000099999
 /// </summary>
-static BigInteger GeneratePalindromeFromEvenDigits(int nrDigits, out BigInteger x1, out BigInteger x2)
+static BigInteger GeneratePalindromeFromEvenDigits(
+    int nrDigits,
+    out BigInteger x1,
+    out BigInteger x2)
 {
     if (nrDigits % 2 != 0)
     {
@@ -62,7 +68,6 @@ static BigInteger GeneratePalindromeFromEvenDigits(int nrDigits, out BigInteger 
     x2 = x1 - (BigInteger)Math.Pow(10, nrDigits / 2) + 2;
 
     return x1 * x2;
-
 }
 
 static BigInteger Palindrome(int nrDigits, out BigInteger x1, out BigInteger x2)
@@ -93,7 +98,9 @@ static BigInteger Palindrome(int nrDigits, out BigInteger x1, out BigInteger x2)
     {
         // Cheat, by artificially reducing the explored space
         // 990000
-        endWithSmallest = startFromMax - (BigInteger)Math.Pow(10, (nrDigits / 2) + 1);
+        endWithSmallest =
+            startFromMax -
+            (BigInteger)Math.Pow(10, (nrDigits / 2) + 1);
     }
 
     BigInteger max = 0;
@@ -129,9 +136,25 @@ static BigInteger Palindrome(int nrDigits, out BigInteger x1, out BigInteger x2)
 
 Stopwatch sw = new();
 
-for (int x = 1; x <= 12; x++)
+for (int x = 13; x <= 13; x++)
 {
+    //// Only count pair multipliers, because the odd ones take too long
+    //if (x > 6)
+    //{
+    //    x++;
+    //}
+
     sw.Restart();
     BigInteger max = Palindrome(x, out BigInteger i, out BigInteger j);
-    Console.WriteLine($"{x,2} digits: {i,14} × {j,14} = {max,28}, {sw.ElapsedMilliseconds}ms");
+
+    if (max == 0)
+    {
+        Console.WriteLine($"{x,2} digits: No solution was found, " +
+            $"{sw.ElapsedMilliseconds}ms");
+    }
+    else
+    {
+        Console.WriteLine($"{x,2} digits: {i,14} × {j,14} = {max,28}, " +
+            $"{sw.ElapsedMilliseconds}ms");
+    }
 }
